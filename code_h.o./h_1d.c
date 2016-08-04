@@ -1,3 +1,4 @@
+/********This is a code for one dimension harmonic oscillator eigen-problem************/
 #include <stdio.h>
 //lapacke headers
 #include "mkl.h"
@@ -37,10 +38,10 @@ int main(){
     if(info==0){
         for(i=0;i<order;i++){
           //  fprintf(s,"eigenvalue %d:\n",i);
-            fprintf(s,"%.6g\n",w[i]);
+            fprintf(s,"%.6g\n",w[i]);       //print eigenvalue.
           // fprintf(v,"right eigenvector: \n");
             for(j=0;j<order;j++)
-                fprintf(v,"%.6g \t",A[i*order+j]);
+                fprintf(v,"%.6g \t",A[i*order+j]);  //print eigenvector.
             fprintf(v,"\n");
         }
         printf("SUCCESS\n");
