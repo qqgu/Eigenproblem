@@ -49,6 +49,8 @@ int main(){
     }
     fclose(s);
     fclose(v);
+    mkl_free(A);
+    mkl_free(w);
 
     return 0;
 }
