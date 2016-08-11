@@ -1,6 +1,7 @@
 /****   This a code to cal magnititude of complex vector  ****/
 #include <stdio.h>
 #include <stdlib.h>
+#include "mkl.h"
 #include <mkl_cblas.h>
 
 #define N	10
@@ -15,9 +16,11 @@ void initVector(MKL_Complex16 * v)
 
 int	main(int argc, char *argv[])
 {
-	MKL_Complex16  *vector = (MKL_Complex16 *) malloc(sizeof(MKL_Complex16) * N);
+	MKL_Complex16  *vector = (MKL_Complex16 *) mkl_malloc(sizeof(MKL_Complex16) * N,64);
 	initVector(vector);
 
 	double	ret3 = cblas_dzasum(N, vector, 1); //cal magnititude. return a double number.
 		printf("Result of sasum: %lf\n", ret3);
+	mkl_free(vector);
+	return 0;
 }
