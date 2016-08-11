@@ -1,3 +1,4 @@
+/****   This a code to cal magnititude of complex vector  ****/
 #include <stdio.h>
 #include <stdlib.h>
 #include <mkl_cblas.h>
