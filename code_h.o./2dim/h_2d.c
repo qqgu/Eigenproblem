@@ -4,7 +4,7 @@
 #include "mkl.h"
 
 int main(){
-    int matrix_layout = LAPACK_COL_MAJOR;
+    int matrix_layout = LAPACK_ROW_MAJOR;
     char jobz = 'V';
     char uplo='U';
     int M,M2,N,N2;
