@@ -12,7 +12,6 @@
 #include <time.h>
 #include "mkl_solvers_ee.h"
 
-
 double POT (double x,double y)
 {
     return -x*x - y*y;
@@ -25,7 +24,7 @@ double POT (double x,double y)
 !   Define some variables of specific problem.
 !   range of x, and y, size of origin matrix, matrix block;
 */
-    MKL_INT Nd = 50;                          // number of discrete
+    MKL_INT Nd = 4;                          // number of discrete
     MKL_INT Ncount = Nd-1;
     MKL_INT Nblc = 2*Ncount;                //matrix block; 
     const MKL_INT N =  2*Ncount*Ncount;     //origin matrix is N by N matirx.
@@ -47,10 +46,10 @@ double POT (double x,double y)
 */   
 
    
-    MKL_INT rows[N+1];                              
-    MKL_INT rval[Nblc];                              //use rval to init rows;
-    //rows = (MKL_INT *)mkl_malloc( (N+1)*sizeof( MKL_INT ), 64);
-    //rval = (MKL_INT *)mkl_malloc( (Nblc)*sizeof( MKL_INT ), 64);
+    int *rows;                              
+    int *rval;                              //use rval to init rows;
+    rows = (MKL_INT *)mkl_malloc( (N+1)*sizeof( MKL_INT ), 64);
+    rval = (MKL_INT *)mkl_malloc( (Nblc)*sizeof( MKL_INT ), 64);
     
     // some assistant variables; cycle etc.
     int i,j,m,flag,ic,flag2;
@@ -76,7 +75,7 @@ double POT (double x,double y)
         } 
         else rval[i+1]=rval[i]=4;       
     }
-    for (i=0;i<N;i++)
+    for (i=0;i<N+1;i++)
     {  
         if (i<Nblc) rows[i+1]=rows[i]+rval[i];
         else if(i<(Ncount-1)*Nblc) rows[i+1]=rows[i]+rval[i%(Nblc)]+1;
@@ -88,13 +87,13 @@ double POT (double x,double y)
 !              rows[N]-1 is the number of nonzero elements    
 !      init cols of all nonzero elements col index; during init val.     
 */
-    MKL_INT cols[rows[N]-1];                          // nonzero elements col index
-    MKL_Complex16 val[rows[N]-1];                 // nonzero elements value
-    MKL_INT u[Nblc];                             // u array is store the order of every row nonzero element sequence.
+    int *cols;                          // nonzero elements col index
+    MKL_Complex16 *val;                 // nonzero elements value
+    int *u;                             // u array is store the order of every row nonzero element sequence.
 
-   // cols = (MKL_INT *)mkl_malloc( (rows[N]-1)*sizeof( MKL_INT ), 64);
-    //val = (MKL_Complex16 *)mkl_malloc( (rows[N]-1)*sizeof( MKL_Complex16 ), 64);
-    //u = (MKL_INT *)mkl_malloc( (Nblc)*sizeof( MKL_INT ), 64);
+    cols = (MKL_INT *)mkl_malloc( (rows[N]-1)*sizeof( MKL_INT ), 64);
+    val = (MKL_Complex16 *)mkl_malloc( (rows[N]-1)*sizeof( MKL_Complex16 ), 64);
+    u = (MKL_INT *)mkl_malloc( (Nblc)*sizeof( MKL_INT ), 64);
  
  /**************  initialize val and cols part which is the most tricky part of this code.  ******************/
 
@@ -113,75 +112,75 @@ double POT (double x,double y)
         numr = rows[i+1]-rows[i];   // nonzero elements number of row i; 
         if(i < Nblc)    //the first block has only D and C1 matrix block
         {
-            val[rows[i]+u[ic]-1].real = POT(xmin+(ic/2+1)*hx,ymin+(j+1)*hy);
-            val[rows[i]+u[ic]-1].imag = 0;
+            val[rows[i]+u[ic]].real = POT(xmin+(ic/2+1)*hx,ymin+(j+1)*hy);
+            val[rows[i]+u[ic]].imag = 0;
             
-            cols[rows[i]+u[ic]-1] = i+1;  // diagonal element i+1 for first index is 1 not 0
+            cols[rows[i]+u[ic]] = i+1;  // diagonal element i+1 for first index is 1 not 0
 
            for( m=u[ic]+1;m<numr-1;m++)
             {   
-                    val[rows[i]+m-1] = (MKL_Complex16) {0.0,-1.0*Rx};
-                    cols[rows[i]+m-1] = i+1+2+pow(-1,flag2);
+                    val[rows[i]+m] = (MKL_Complex16) {0.0,-1.0*Rx};
+                    cols[rows[i]+m] = i+1+2+pow(-1,flag2);
             }
 
-            val[rows[i+1]-1-1] = (MKL_Complex16) {pow(-1,flag2)*(-1)*Ry,0.0}; 
-            cols[rows[i+1]-1-1] = i+1+Nblc+pow(-1,flag2);
+            val[rows[i+1]-1] = (MKL_Complex16) {pow(-1,flag2)*(-1)*Ry,0.0}; 
+            cols[rows[i+1]-1] = i+1+Nblc+pow(-1,flag2);
         
             for(m=u[ic]-1;m>=0;m--)
             {
-                val[rows[i]+m-1] = (MKL_Complex16) {0.0,Rx};
-                cols[rows[i]+m-1] = i+1-(2-pow(-1,flag2));
+                val[rows[i]+m] = (MKL_Complex16) {0.0,Rx};
+                cols[rows[i]+m] = i+1-(2-pow(-1,flag2));
             }
         }
         
         if(i>=Nblc&&i<(Ncount-1)*Nblc)     //middle blocks have C2 D and C1 blocks.
         {
-            val[rows[i]+u[ic]+1-1].real = POT(xmin+(ic/2+1)*hx,ymin+(j+1)*hy);
-            val[rows[i]+u[ic]+1-1].imag = 0;
-            cols[rows[i]+u[ic]+1-1] = i+1;
+            val[rows[i]+u[ic]+1].real = POT(xmin+(ic/2+1)*hx,ymin+(j+1)*hy);
+            val[rows[i]+u[ic]+1].imag = 0;
+            cols[rows[i]+u[ic]+1] = i+1;
     
             for( m=u[ic]+1+1;m<numr-1;m++)
             {   
-                val[rows[i]+m-1] = (MKL_Complex16) {0,-1.0*Rx};
-                cols[rows[i]+m-1] = i+1+2+pow(-1,flag2);
+                val[rows[i]+m] = (MKL_Complex16) {0,-1.0*Rx};
+                cols[rows[i]+m] = i+1+2+pow(-1,flag2);
             }
             
-            val[rows[i+1]-1-1] = (MKL_Complex16) {pow(-1,flag2)*(-1)*Ry,0}; 
-            cols[rows[i+1]-1-1] = i+1+Nblc+pow(-1,flag2);
+            val[rows[i+1]-1] = (MKL_Complex16) {pow(-1,flag2)*(-1)*Ry,0}; 
+            cols[rows[i+1]-1] = i+1+Nblc+pow(-1,flag2);
             
 
             for(m=u[ic];m>0;m--)    
             {
-                val[rows[i]+m-1] = (MKL_Complex16) {0,Rx};
-                cols[rows[i]+m-1] = i+1-(2-pow(-1,flag2));
+                val[rows[i]+m] = (MKL_Complex16) {0,Rx};
+                cols[rows[i]+m] = i+1-(2-pow(-1,flag2));
             }
 
-            val[rows[i]-1] = (MKL_Complex16) {pow(-1,flag2)*Ry,0}; 
-            cols[rows[i]-1] = i+1-(Nblc-pow(-1,flag2));
+            val[rows[i]] = (MKL_Complex16) {pow(-1,flag2)*Ry,0}; 
+            cols[rows[i]] = i+1-(Nblc-pow(-1,flag2));
 
   
         }
         if(i>=(Ncount-1)*Nblc)  //The last block has C2 and D matrix block
         {
-            val[rows[i]+u[ic]+1-1].real = POT(xmin+(ic/2+1)*hx,ymin+(j+1)*hy);
-            val[rows[i]+u[ic]+1-1].imag = 0;
-            cols[rows[i]+u[ic]+1-1] = i+1;
+            val[rows[i]+u[ic]+1].real = POT(xmin+(ic/2+1)*hx,ymin+(j+1)*hy);
+            val[rows[i]+u[ic]+1].imag = 0;
+            cols[rows[i]+u[ic]+1] = i+1;
             
             for( m=u[ic]+1+1;m<numr;m++)
             {   
-                val[rows[i]+m-1] = (MKL_Complex16) {0,-1.0*Rx};
-                cols[rows[i]+m-1] = i+1+2+pow(-1,flag2);
+                val[rows[i]+m] = (MKL_Complex16) {0,-1.0*Rx};
+                cols[rows[i]+m] = i+1+2+pow(-1,flag2);
             }
 
 
             for(m=u[ic];m>0;m--)
             {
-                val[rows[i]+m-1] = (MKL_Complex16) {0,Rx};
-                cols[rows[i]+m-1] = i+1-(2-pow(-1,flag2));
+                val[rows[i]+m] = (MKL_Complex16) {0,Rx};
+                cols[rows[i]+m] = i+1-(2-pow(-1,flag2));
             }
 
-            val[rows[i]-1] = (MKL_Complex16) {pow(-1,flag2)*Ry,0}; 
-            cols[rows[i]-1] = i+1-(Nblc-pow(-1,flag2));
+            val[rows[i]] = (MKL_Complex16) {pow(-1,flag2)*Ry,0}; 
+            cols[rows[i]] = i+1-(Nblc-pow(-1,flag2));
 
         }
 
@@ -196,7 +195,7 @@ double POT (double x,double y)
     double      Emin, Emax;    /* Lower/upper bound of search interval [Emin,Emax] */
     double      epsout;        /* Relative error of the trace */
     MKL_INT     loop;           /* Number of refinement loop */
-    MKL_INT     L = 500;       /* guess of number of Eigenvalues between Emin and Emax.*/
+    MKL_INT     L = 4;       /* guess of number of Eigenvalues between Emin and Emax.*/
     MKL_INT     M0 = L;         /* Initial guess for subspace dimension to be used */
     MKL_INT     M  = L;              /* Total number of eigenvalues found in the interval */
 
@@ -213,7 +212,7 @@ double POT (double x,double y)
         X[i] = zero;
     }
     Emax = -2.0;
-    Emin = -30.0;
+    Emin = -3.0;
 
     loop = 0;
     info = 0;
@@ -260,7 +259,7 @@ double POT (double x,double y)
 */
 
 
-for(i=0;i < M;i++)
+ for(i=0;i < M;i++)
 {
     fprintf(s,"%.6f\n",E[i]);       //print out eigenvalue to eigva.dat
     for (j = 0;j < N; j+=2)
@@ -272,18 +271,17 @@ for(i=0;i < M;i++)
    fprintf(v,"\n");
 
 }
-
 stop=clock();
 printf("Elapsed time = %.5f seconds\n",((double)(stop - start))/CLOCKS_PER_SEC);
 fclose(s);
 fclose(v);
 
 
-//    mkl_free(rows);
- //   mkl_free(rval);
-  //  mkl_free(cols);
-   // mkl_free(val);
-    //mkl_free(u);
+    mkl_free(rows);
+    mkl_free(rval);
+    mkl_free(cols);
+    mkl_free(val);
+    mkl_free(u);
 
 return 0;
  }

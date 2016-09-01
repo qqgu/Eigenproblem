@@ -157,11 +157,6 @@ double POT (double x,double y)
     }
 
 
-
-
-
-
-
  for(i=0;i<N;i++)
     {
        for (j=rows[i];j<=rows[i+1]-1;j++)

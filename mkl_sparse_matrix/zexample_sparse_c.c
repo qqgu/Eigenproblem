@@ -89,6 +89,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <math.h>
 #include "mkl_solvers_ee.h"
 
@@ -122,30 +123,7 @@ int main()
                                                                                                                                { 8.0, -9.0}, { 2.0,  0.0}, { 9.0, 10.0},
                                                                                                                                              { 9.0,-10.0}, { 1.0,  0.0}
                             };
-    /* Matrix B of size N in CSR format. We use size of matrix N and 3 arrays to store matrix in CSR format */
-    MKL_INT       rowsb[11] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
-    MKL_INT       colsb[10] = {        1,
-                                                  2,
-                                                             3,
-                                                                        4,
-                                                                                   5,
-                                                                                              6,
-                                                                                                         7,
-                                                                                                                    8,
-                                                                                                                               9,
-                                                                                                                                         10
-                              };
-    MKL_Complex16  valb[10] = {{1.0, 0.0},
-                                         {1.0, 0.0},
-                                                    {1.0, 0.0},
-                                                               {1.0, 0.0},
-                                                                          {1.0, 0.0},
-                                                                                     {1.0, 0.0},
-                                                                                                {1.0, 0.0},
-                                                                                                           {1.0, 0.0},
-                                                                                                                      {1.0, 0.0},
-                                                                                                                                 {1.0, 0.0}
-                            };
+     
 
     /* Declaration of FEAST variables */
     MKL_INT       fpm[128];      /* Array to pass parameters to Intel MKL Extended Eigensolvers */
@@ -170,17 +148,12 @@ int main()
     char          ZGEMMN = 'N';  /* Character for GEMM routine, non-transposed case */
     MKL_Complex16 one  = {1.0, 0.0};    /* alpha parameter for GEMM */
     MKL_Complex16 zero = {0.0, 0.0};    /* beta  parameter for GEMM */
-    MKL_INT      ldx = 10;      /* Leading dimension for source arrays in GEMM */
-    MKL_INT      ldy = 10;      /* Leading dimension for destination array in GEMM */
+
 
     MKL_INT      i, j;
     double        trace, smax, eigabs;
-
-    /* Exact eigenvalues in range (2.0, 12.0) */
-    Eig[0]=2.231051;
-    Eig[1]=6.058517;
-    Eig[2]=9.109751;
-    Eig[3]=11.703148;
+	clock_t start,stop;
+	start=clock();
 
     for (i=4; i<N; i++)
     {
@@ -212,7 +185,7 @@ int main()
         fpm /* OUT: Array is used to pass parameters to Intel MKL Extended Eigensolvers */
         );
 
-    fpm[0] =  1; /* Extended Eigensolver routines print runtime status to the screen. */
+    fpm[1] =  48; /* Extended Eigensolver routines print runtime status to the screen. */
 
     /* Step 2. Solve the standard Ax = ex eigenvalue problem. */
     printf(" Testing zfeast_hcsrev\n");
@@ -241,192 +214,17 @@ int main()
         return 1;
     }
 
-    /* Step 3. Compute the residual R(i) = | E(i) - Eig(i) |  where Eig(i)
-    * are the expected eigenvalues and E(i) are eigenvalues computed by ZFEAST_HCSREV(). */
-    printf("Number of eigenvalues found %d \n", M);
-    printf("Computed      |    Expected    \n");
-    printf("Eigenvalues   |    Eigenvalues \n");
-    eigabs = 0.0;
-    for (i=0; i<M; i++)
-    {
-        R[i] = fabs(E[i] - Eig[i]);
-        eigabs = max(eigabs, R[i]);
-        printf("%.15e %.15e \n", E[i], Eig[i]);
+ for (i=0;i<M;i++)
+ {
+     printf("%d %f : ",i,E[i]);
+     for (j=0;j< N;j++)
+     {
+        
+         printf("{%f,%f}\t",X[i*N+j].real,X[i*N+j].imag);
+   
     }
-    printf("Max value of | computed eigenvalue(i) - expected eigenvalues(i) | %.15e \n", eigabs);
-
-    /* Step 4. The code computes the maximum absolute value of elements
-     * of the matrix Y = X' *X - I, where X is the matrix of eigenvectors
-     * computed by ZFEAST_HCSREV.
-     *
-     * Call BLAS to compute Y = X' * X  */
-    zgemm(
-        &ZGEMMC, /* IN: 'C', conjugated case*/
-        &ZGEMMN, /* IN: 'N', non-transposed case*/
-        &M,      /* IN: Number of rows in matrix Y */
-        &M,      /* IN: Number of columns in matrix X */
-        &N,      /* IN: Number of columns in matrix Y */
-        &one,    /* IN: alpha = 1.0 */
-        X,       /* IN: Source #1 for GEMM, will be transposed */
-        &ldx,    /* IN: Leading dimension of Source 1 */
-        X,       /* IN: Source #2 for GEMM */
-        &ldx,    /* IN: Leading dimension of Source 2 */
-        &zero,   /* IN: beta = 0.0 */
-        Y,       /* OUT: Destination */
-        &ldy     /* IN: Leading dimension of Destination */
-        );
-
-    /* Compute Y = Y - I */
-    for (i=0; i<M; i++)
-    {
-        Y[i][i].real -= 1.0;
-    }
-
-    printf("*************************************************\n");
-    printf("************** REPORT ***************************\n");
-    printf("*************************************************\n");
-    printf("#Search interval [Emin,Emax] %.15e %.15e\n", Emin, Emax);
-    printf("#mode found/subspace %d %d \n", M, M0);
-    printf("#iterations %d \n", loop);
-    trace = 0.0;
-    for (i=0; i<M; i++)
-    {
-        trace += E[i];
-    }
-    printf("TRACE %.15e \n", trace);
-    printf("Relative error on the Trace %.15e \n", epsout);
-    printf("Index/Eigenvalues/Residuals\n");
-    for (i=0; i<M; i++)
-    {
-        printf("   %d  %.15e %.15e \n", i, E[i], res[i]);
-    }
-    smax = 0.0;
-    for (i=0; i<M; i++)
-    {
-        for (j=0; j<M; j++)
-        {
-            smax=max(smax, sqrt(Y[i][j].imag * Y[i][j].imag + Y[i][j].real * Y[i][j].real));
-        }
-    }
-    printf( "Max(X' * X - I) = %.15e \n", smax);
-
-    /*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
-    /*!!!!!!!!!!!!!!! GENERALIZED EIGENVALUE PROBLEM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
-    /*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
-
-    /* Reset initial parameters for new problem */
-    M0 = L;
-    for (i=0; i<N; i++)
-    {
-        E[i] = 0.0;
-    }
-    for (i=0; i<N*N; i++)
-    {
-        X[i] = zero;
-    }
-
-    /* Step 5. Solve the generalized eigenvalue problem Ax=eBx by ZFEAST_HCSRGV */
-    printf(" Testing zfeast_hcsrgv\n");
-     zfeast_hcsrgv(
-        &UPLO,   /* IN: UPLO = 'F', stores the full matrix */
-        &N,      /* IN: Size of the problem */
-        val,     /* IN: CSR matrix A, values of non-zero elements */
-        rows,    /* IN: CSR matrix A, index of the first non-zero element in row */
-        cols,    /* IN: CSR matrix A, columns indices for each non-zero element */
-        valb,    /* IN: CSR matrix B, values of non-zero elements */
-        rowsb,   /* IN: CSR matrix B, index of the first non-zero element in row */
-        colsb,   /* IN: CSR matrix B, columns indices for each non-zero element */
-        fpm,     /* IN: Array is used to pass parameters to Intel MKL Extended Eigensolvers */
-        &epsout, /* OUT: Relative error of on the trace */
-        &loop,   /* OUT: Contains the number of refinement loop executed */
-        &Emin,   /* IN: Lower bound of search interval */
-        &Emax,   /* IN: Upper bound of search interval */
-        &M0,     /* IN/OUT: The initial guess for subspace dimension to be used. */
-        E,       /* OUT: The first M entries of Eigenvalues */
-        X,       /* OUT: The first M entries of Eigenvectors */
-        &M,      /* OUT: The total number of eigenvalues found in the interval */
-        res,     /* OUT: The first M components contain the relative residual vector */
-        &info    /* OUT: Error code */
-        );
-
-    printf("FEAST OUTPUT INFO %d \n" ,info);
-    if ( info != 0 )
-    {
-        printf("Routine zfeast_hcsrgv return error: %i", (int)info);
-        return 1;
-    }
-    /* Step 6. Compute the residual R(i) = | E(i) - Eig(i) |  where Eig(i)
-     *  are the expected eigenvalues  and E(i) are eigenvalues computed
-     *  by  ZFEAST_HCSRGV */
-    printf("Number of eigenvalues found %d \n", M);
-    printf("Computed      |    Expected    \n");
-    printf("Eigenvalues   |    Eigenvalues \n");
-    eigabs = 0.0;
-    for (i=0; i<M; i++)
-    {
-        R[i] = fabs(E[i] - Eig[i]);
-        eigabs = max(eigabs, R[i]);
-        printf("%.15e %.15e \n", E[i], Eig[i]);
-    }
-    printf("Max value of | computed eigenvalue - expected eigenvalues | %.15e \n", eigabs);
-
-    /* Step 7. The code computes the maximum absolute value of the elements of
-     * the matrix  Y = X' * X - I, where X is the matrix of eigenvectors
-     * computed by ZFEAST_HCSRGV.
-     *
-     * Call BLAS to compute X' * X */
-
-    zgemm(
-        &ZGEMMC, /* IN: 'C', conjugated case*/
-        &ZGEMMN, /* IN: 'N', non-transposed case*/
-        &M,      /* IN: Number of rows in matrix Y */
-        &M,      /* IN: Number of columns in matrix X */
-        &N,      /* IN: Number of columns in matrix Y */
-        &one,    /* IN: alpha = 1.0 */
-        X,       /* IN: Source #1 for GEMM, will be transposed */
-        &ldx,    /* IN: Leading dimension of Source 1 */
-        X,       /* IN: Source #2 for GEMM */
-        &ldx,    /* IN: Leading dimension of Source 2 */
-        &zero,   /* IN: beta = 0.0 */
-        Y,       /* OUT: Destination */
-        &ldy     /* IN: Leading dimension of Destination */
-        );
-
-    /* Compute Y = Y - I */
-    for (i=0; i<M; i++)
-    {
-        Y[i][i].real -= 1.0;
-    }
-
-    /* Check the orthogonality of X' * X */
-    smax = 0.0;
-    for (i=0; i<M; i++)
-    {
-        for (j=0; j<M; j++)
-        {
-            smax = max(smax, sqrt(Y[i][j].imag * Y[i][j].imag + Y[i][j].real * Y[i][j].real));
-        }
-    }
-
-    printf("*************************************************\n");
-    printf("************** REPORT ***************************\n");
-    printf("*************************************************\n");
-    printf("# Search interval [Emin,Emax] %.15e %.15e\n", Emin, Emax);
-    printf("# mode found/subspace %d %d \n",M,M0);
-    printf("# iterations %d \n",loop);
-    printf("Max(X' * X - I) = %.15e \n", smax);
-    trace = 0.0;
-    for (i=0; i<M; i++)
-    {
-        trace += E[i];
-    }
-    printf("TRACE %.15e \n", trace);
-    printf("Relative error on the Trace %.15e \n", epsout);
-    printf("Index/Eigenvalues/Residuals\n");
-    for (i=0; i<M; i++)
-    {
-        printf("   %d  %.15e %.15e \n", i, E[i], res[i]);
-    }
-
+     printf("\n");
+ }
+    
     return 0;
 }
